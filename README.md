@@ -12,5 +12,5 @@
 <p align="center">
   <img src="./image/result.png"/>
 <p/>
-4 参考文献
+#4 参考资料
 《从lucene到elasticsearch全文检索实战》
