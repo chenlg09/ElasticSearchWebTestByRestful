@@ -1,0 +1,215 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+	<meta charset="UTF-8">
+    <title>搜索结果</title>
+    <link type="text/css" rel="stylesheet" href="css/result.css">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta http-equiv="pragma" content="no-cache">
+    <meta http-equiv="cache-control" content="no-cache">
+    <meta http-equiv="expires" content="0">
+    <meta http-equiv="keywords" content="keyword1,keyword2,keyword3">
+    <meta http-equiv="description" content="ajax方式">
+    <script src="http://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
+    <script type="text/javascript">
+		
+		Date.prototype.toLocaleString = function() {
+			
+			function addZero(num){
+				if(num<10)
+					return "0" + num;
+				return num;
+		   }
+		   
+		   return this.getFullYear() + "/" + addZero(this.getMonth() + 1) + "/" + addZero(this.getDate())+" "+
+			   + addZero(this.getHours()) + ":" + addZero(this.getMinutes()) + ":" + addZero(this.getSeconds());
+		};
+
+		var str = location.search
+		str = decodeURI(str);
+		str = str.split('?')[1]
+		var queryStr = str.split('&')[0].split('=')[1]
+		var startDate = str.split('&')[1].split('=')[1]
+		var endDate = str.split('&')[2].split('=')[1]
+		var page = str.split('&')[3].split('=')[1]
+		
+        function search(x) {
+
+		var data = {
+					"query":{
+						"bool":{
+							"must":[{
+									"multi_match": {
+									  "query": queryStr,
+									  "fields": ["title","search_word"]
+									}
+								},{
+									"range":{
+										"publish_time":{
+											"gte":startDate,
+											"lte":endDate,
+											"format":"yyyy-MM-dd"
+										}									
+									}
+								}
+							]		
+						}
+					},
+					"highlight":{
+						
+						"fields":{
+							"title":{
+								"pre_tags":["<span style=\"color:red\">"],
+								"post_tags":["</span>"]
+							},
+							"search_word":{
+								"pre_tags":["<span style=\"color:red\">"],
+								"post_tags":["</span>"]
+							}
+						}
+					},
+					"size":10,
+					"from":page,
+					"sort":[{"publish_time":{"order":"desc"}}]
+				  }
+		//alert(JSON.stringify(data));  
+            $.ajax({
+				method:"post",
+                url: "http://10.0.12.4:9200/news_data/news_data/_search?pretty",//url
+				data: JSON.stringify(data), 
+				dataType : 'JSON', 
+				contentType: 'application/json',
+				success: function (result) {
+					$("#query").val(queryStr);
+					$("#startDate").val(startDate);
+					$("#endDate").val(endDate);
+					$("#page").val(page);
+					
+					var jsonStr = JSON.stringify(result);
+					var jsonObj = JSON.parse(jsonStr);
+					$("#resultJson").val(jsonStr);
+					$("#totalNum").html(jsonObj.hits.total);
+					$("#totalTime").html(jsonObj.took/1000);
+					var pages = jsonObj.hits.total/10;
+					pages = Math.ceil(pages)
+					var ulBody = document.getElementById('ulId');
+					for(var i=1;i<=pages;i++){
+						var li = document.createElement("li");
+						var str = "<a href='./result.html?query="+queryStr+"&startDate="+startDate+"&endDate="+endDate+"&page="+i+"'>" + i + "</a>"; 
+						li.innerHTML = str;
+						ulBody.appendChild(li);
+					}
+					
+					var tbody = document.getElementById('tbMain');
+					for(var i=0; i<jsonObj.hits.hits.length; i++){
+						
+						var title
+						if(jsonObj.hits.hits[i].highlight.title!=undefined && jsonObj.hits.hits[i].highlight.title!="")
+							title = jsonObj.hits.hits[i].highlight.title;
+						else
+							title = jsonObj.hits.hits[i]._source.title;
+						
+						var search_word
+						if(jsonObj.hits.hits[i].highlight.search_word!=undefined && jsonObj.hits.hits[i].highlight.search_word!="")
+							search_word = jsonObj.hits.hits[i].highlight.search_word;
+						else
+							search_word = jsonObj.hits.hits[i]._source.search_word;
+						
+						var insertStr = "<tr> "
+						+ "<td>"+ (i+1) + "</td>"
+						+ "<td>"+ jsonObj.hits.hits[i]._source.source + "</td>"
+						+ "<td onclick=\"location.href='"+jsonObj.hits.hits[i]._source.url+"'\" >"+ title + "</td>"
+						+ "<td>"+ search_word + "</td>"
+						+ "<td>"+ new Date(jsonObj.hits.hits[i]._source.publish_time).toLocaleString() + "</td>"
+						+ "</tr>"
+						<!-- alert(jsonObj.hits.hits[i].highlight.title) -->
+						tbody.innerHTML += insertStr
+						<!-- var tr = document.createElement("tr"); -->
+						<!-- var td1 = document.createElement("td"); -->
+						<!-- td1.append(i+1); -->
+						<!-- var td2 = document.createElement("td"); -->
+						<!-- td2.append(jsonObj.hits.hits[i]._source.source); -->
+						<!-- //title 高亮 -->
+						<!-- var td3 = document.createElement("td"); -->
+						<!-- if(jsonObj.hits.hits[i].highlight.title!=null && jsonObj.hits.hits[i].highlight.title!="") -->
+							<!-- td3.innerHTML = jsonObj.hits.hits[i].highlight.title; -->
+						<!-- else -->
+							<!-- td3.innerHTML = jsonObj.hits.hits[i]._source.title; -->
+						<!-- //search_word高亮 -->
+						<!-- var td4 = document.createElement("td"); -->
+						<!-- if(jsonObj.hits.hits[i].highlight.search_word!=null && jsonObj.hits.hits[i].highlight.search_word!="") -->
+							<!-- td4.innerHTML = jsonObj.hits.hits[i].highlight.search_word; -->
+						<!-- else -->
+							<!-- td4.innerHTML = jsonObj.hits.hits[i]._source.search_word; -->
+							
+						<!-- var td5 = document.createElement("td"); -->
+						<!-- td5.append(new Date(jsonObj.hits.hits[i]._source.publish_time).toLocaleString()); -->
+						
+						<!-- tr.appendChild(td1); -->
+						<!-- tr.appendChild(td2); -->
+						<!-- tr.appendChild(td3); -->
+						<!-- tr.appendChild(td4); -->
+						<!-- tr.appendChild(td5); -->
+						
+						<!-- tbody.appendChild(tr); -->
+						
+						
+					}
+
+                },
+                error : function(err) {
+				    alert(JSON.stringify(err));
+                }
+            });
+			
+        }
+		search(23);
+		
+    </script>
+</head>
+<body>
+<div class="result_search">
+    <div class="logo">
+        <h2><a href="./index.html">ElasticSearch</a></h2>
+    </div>
+    <div class="searchbox">
+        <form action="./result.html" method="get">
+            <input type="text" id="query" name="query" value="">
+            <input type="submit" value="搜索一下">
+			<h5>起始时间：<input type="date" name="startDate" id="startDate">
+            结束时间：<input type="date" name="endDate" id="endDate"></h5>
+			<input type="text" value="0" name="page" id="page" style="display:none"></input>
+        </form>
+    </div>
+</div>
+<h5 class="result_info">共搜索到<span id="totalNum"></span>条结果,耗时<span id="totalTime"></span>秒
+</h5>
+<div class="newslist">
+   <table border="1" width="1200px">
+	  <thead>
+		  <tr>
+		    <th width="5%">序号</th>
+			<th width="10%">数据源</th>
+			<th width="50%">内容</th>
+			<th width="15%">关键词</th>
+			<th width="20%">发布时间</th>
+		  </tr>
+	  </thead>
+	  <tbody id="tbMain">
+	  
+	  </tbody>
+	</table>
+</div>
+<div class="page">
+    <ul id="ulId">
+       
+
+    </ul>
+</div>
+<input type="textarea" id="resultJson" style="display:none"></input>
+<div class="info">
+    <p>ElasticSearchTest Powered By <b> chenlg</b></p>
+    <p>@2018 All right reserved</p>
+</div>
+</body>
+</html>
